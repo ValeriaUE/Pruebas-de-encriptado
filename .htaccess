@@ -1,0 +1,38 @@
+# FN Inspección — configuración del servidor (Apache / PHP)
+
+# --- Nada de caché para el HTML y los scripts propios ---
+# Así cada publicación se ve al instante, sin borrar datos del sitio.
+<FilesMatch "\.(html|js|webmanifest)$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Pragma "no-cache"
+  Header set Expires "0"
+</FilesMatch>
+
+# El service worker debe revalidarse siempre.
+<Files "sw.js">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Service-Worker-Allowed "/"
+</Files>
+
+<Files "manifest.webmanifest">
+  Header set Content-Type "application/manifest+json; charset=utf-8"
+</Files>
+
+# Las imágenes e iconos sí pueden cachearse.
+<FilesMatch "\.(png|jpg|jpeg|svg|ico|woff2)$">
+  Header set Cache-Control "public, max-age=604800"
+</FilesMatch>
+
+# --- Proteger la configuración con la clave de Resend ---
+<Files "config.php">
+  Require all denied
+</Files>
+<Files "config.php.ejemplo">
+  Require all denied
+</Files>
+
+# Forzar HTTPS (necesario para que la app se instale como PWA).
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
