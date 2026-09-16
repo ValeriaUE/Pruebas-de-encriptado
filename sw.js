@@ -4,7 +4,7 @@
    Sube el número de versión (CACHE) cada vez que publiques cambios para
    forzar la actualización en los dispositivos ya instalados. */
 
-const CACHE = 'fn-inspeccion-v23';
+const CACHE = 'fn-inspeccion-v25';
 
 // Recursos locales del propio sitio (mismo origen).
 const LOCAL_ASSETS = [

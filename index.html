@@ -1151,19 +1151,42 @@ function applyImportedUsers(drafts: UserDraft[], mode: 'replace' | 'merge'): { c
   return { created, updated, total: users.length };
 }
 
+// El perfil de quien ingresó lo entrega la base al validar el ingreso. Se
+// conserva aparte porque la lista completa de usuarios llega después (y solo
+// para quien tiene permiso de verla): sin esto, el rol quedaría en blanco.
+const CURRENT_PROFILE_KEY = 'fullneumaticos_current_profile_v1';
+
 const getCurrentUser = (): User | null => {
   const userId = localStorage.getItem(CURRENT_USER_KEY);
   if (!userId) return null;
   const users = getUsers();
-  return users.find(u => u.id === userId) || null;
+  const fromList = users.find(u => u.id === userId);
+  if (fromList) return fromList;
+  try {
+    const p = JSON.parse(localStorage.getItem(CURRENT_PROFILE_KEY) || 'null');
+    if (p && String(p.id) === String(userId)) return p as User;
+  } catch (e) {}
+  return null;
 };
 
 const setCurrentUser = (userId: string) => {
   localStorage.setItem(CURRENT_USER_KEY, userId);
 };
 
+// Guarda el perfil devuelto por la base y lo deja también en la lista local.
+const setSessionProfile = (profile: any) => {
+  if (!profile || !profile.id) return;
+  localStorage.setItem(CURRENT_PROFILE_KEY, JSON.stringify(profile));
+  const list = getUsers();
+  const idx = list.findIndex(u => String(u.id) === String(profile.id));
+  if (idx >= 0) list[idx] = { ...list[idx], ...profile };
+  else list.push(profile as User);
+  saveUsers(list);
+};
+
 const logout = () => {
   localStorage.removeItem(CURRENT_USER_KEY);
+  localStorage.removeItem(CURRENT_PROFILE_KEY);
 };
 
 // Vehicles
@@ -11864,9 +11887,7 @@ function Login({ onLogin }: LoginProps) {
       }
       if (pre && pre.ok && pre.user) {
         setError('');
-        const list0 = getUsers();
-        const i0 = list0.findIndex(u => u.id === pre.user.id);
-        if (i0 >= 0) { list0[i0] = { ...list0[i0], ...pre.user }; saveUsers(list0); }
+        setSessionProfile(pre.user);
         setCurrentUser(pre.user.id);
         onLogin();
         return;
@@ -11896,6 +11917,7 @@ function Login({ onLogin }: LoginProps) {
             return;
           }
           setError('');
+          setSessionProfile(prof);
           setCurrentUser(prof.id);
           onLogin();
           return;
@@ -11907,9 +11929,7 @@ function Login({ onLogin }: LoginProps) {
         if (res.ok && res.user) {
           setError('');
           // El perfil que devuelve el servidor (sin contraseña) reemplaza la copia local.
-          const list = getUsers();
-          const idx = list.findIndex(u => u.id === res.user.id);
-          if (idx >= 0) { list[idx] = { ...list[idx], ...res.user }; saveUsers(list); }
+          setSessionProfile(res.user);
           setCurrentUser(res.user.id);
           onLogin();
           return;

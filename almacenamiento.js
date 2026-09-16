@@ -18,11 +18,26 @@
   var PERSISTENTES = {
     'fn_auth_session': 1,
     'fn_app_token': 1,
-    'fullneumaticos_current_user_v2': 1
+    'fullneumaticos_current_user_v2': 1,
+    'fullneumaticos_current_profile_v1': 1
   };
 
-  var real = window.localStorage;
+  var ls = window.localStorage;
   var memoria = Object.create(null);
+
+  // Métodos NATIVOS capturados antes de reemplazarlos: las claves de sesión se
+  // guardan con estos. (Usar window.localStorage aquí haría que el archivo se
+  // llamara a sí mismo y la sesión no se guardaría nunca.)
+  var real = {
+    getItem: Storage.prototype.getItem.bind(ls),
+    setItem: Storage.prototype.setItem.bind(ls),
+    removeItem: Storage.prototype.removeItem.bind(ls),
+    key: Storage.prototype.key.bind(ls),
+    get length() {
+      try { return Object.getOwnPropertyDescriptor(Storage.prototype, 'length').get.call(ls); }
+      catch (e) { return 0; }
+    }
+  };
 
   // Solo se toca lo que es de esta app: nunca claves de otro origen compartido.
   function propia(key) { return /^(fullneumaticos_|fn_)/.test(key); }
@@ -88,9 +103,18 @@
     }
   });
 
-  // Aviso claro si el navegador no permitiera reemplazarlos.
+  // Comprobación: los métodos quedaron puestos y la sesión se guarda de verdad.
   if (window.localStorage.getItem !== api.getItem) {
     console.error('[FN] No se pudo activar el almacenamiento en memoria: revisa almacenamiento.js');
+  } else {
+    try {
+      var PRUEBA = 'fn_app_token';
+      var antes = real.getItem(PRUEBA);
+      api.setItem(PRUEBA, antes == null ? '' : antes);
+      if (antes != null && api.getItem(PRUEBA) !== antes) {
+        console.error('[FN] La sesión no se está guardando: revisa almacenamiento.js');
+      }
+    } catch (e) {}
   }
 
   window.FN_ALMACENAMIENTO = { modo: 'memoria', persistentes: Object.keys(PERSISTENTES) };
